@@ -1,37 +1,72 @@
 import fitz  # PyMuPDF
 from flask import Flask, request, send_file
+import pandas as pd
 import io
 
 app = Flask(__name__)
 
-# Simulación de asignación (luego lo conectamos a Excel)
-asignaciones = {
-    "2023001": [9, 10],
-    "2023002": [11, 12]
-}
+# Cargar archivo Excel
+df = pd.read_excel("asignaciones.xlsx")
+
+def obtener_paginas(matricula):
+    # Buscar la matrícula en el Excel
+    fila = df[df['matricula'].astype(str) == str(matricula)]
+
+    if fila.empty:
+        return None
+
+    # Obtener rango de páginas (ej: "10-11")
+    paginas_str = str(fila.iloc[0]['paginas'])
+    
+    try:
+        inicio, fin = map(int, paginas_str.split('-'))
+    except:
+        return None
+
+    # Ajustar índice (PDF empieza en 0)
+    return list(range(inicio - 1, fin))
+
 
 @app.route('/')
 def home():
-    return "Servidor activo"
+    return "Servidor activo - PDF dinámico funcionando"
+
 
 @app.route('/ver_pdf')
 def ver_pdf():
     matricula = request.args.get('matricula')
 
-    if matricula not in asignaciones:
+    if not matricula:
+        return "Debe proporcionar una matrícula", 400
+
+    paginas = obtener_paginas(matricula)
+
+    if paginas is None:
         return "Matrícula no válida", 403
 
-    doc = fitz.open("documento.pdf")
+    try:
+        doc = fitz.open("documento.pdf")
+    except:
+        return "Error al abrir el documento PDF", 500
+
     nuevo_pdf = fitz.open()
 
-    for p in asignaciones[matricula]:
-        nuevo_pdf.insert_pdf(doc, from_page=p, to_page=p)
+    try:
+        for p in paginas:
+            if p < len(doc):
+                nuevo_pdf.insert_pdf(doc, from_page=p, to_page=p)
+            else:
+                return "Número de página fuera de rango", 400
 
-    buffer = io.BytesIO()
-    nuevo_pdf.save(buffer)
-    buffer.seek(0)
+        buffer = io.BytesIO()
+        nuevo_pdf.save(buffer)
+        buffer.seek(0)
 
-    return send_file(buffer, mimetype='application/pdf')
+        return send_file(buffer, mimetype='application/pdf')
+
+    except Exception as e:
+        return f"Error procesando el PDF: {str(e)}", 500
+
 
 if __name__ == '__main__':
     app.run()

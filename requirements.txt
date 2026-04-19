@@ -1,3 +1,5 @@
 flask
 PyMuPDF
 gunicorn
+pandas
+openpyxl
