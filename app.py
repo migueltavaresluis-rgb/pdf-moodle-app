@@ -29,7 +29,7 @@ def obtener_paginas(matricula):
 
 @app.route('/')
 def home():
-    return "Servidor activo - PDF dinámico funcionando"
+    return render_template("index.html")
 
 
 @app.route('/ver_pdf')
@@ -66,6 +66,8 @@ def ver_pdf():
 
     except Exception as e:
         return f"Error procesando el PDF: {str(e)}", 500
+
+from flask import Flask, request, send_file, render_template
 
 
 if __name__ == '__main__':
